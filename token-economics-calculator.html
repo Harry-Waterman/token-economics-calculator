@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Token Economics vs Billable Time Calculator</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --border: #e5e7eb;
+      --success: #0f766e;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(180deg, #f8fafc 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .container {
+      width: min(980px, 100%);
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.4rem, 2.6vw, 2rem);
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      background: #fff;
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+    }
+
+    .inputs {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: #374151;
+      font-weight: 600;
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.96rem;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      background: #fff;
+    }
+
+    input[type="number"]:focus,
+    select:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+    }
+
+    .btn-wrap {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-size: 0.94rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.05s ease, background 0.2s ease;
+      background: var(--primary);
+      color: #fff;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .assumptions {
+      margin-top: 16px;
+      padding: 12px;
+      border: 1px dashed #c7d2fe;
+      border-radius: 10px;
+      background: #f8faff;
+    }
+
+    .assumptions h3 {
+      margin: 0 0 8px;
+      font-size: 0.92rem;
+    }
+
+    .assumptions ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #334155;
+      display: grid;
+      gap: 4px;
+      font-size: 0.9rem;
+    }
+
+    .results {
+      display: grid;
+      gap: 10px;
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      border-bottom: 1px solid #f1f5f9;
+      padding: 8px 0;
+    }
+
+    .result-row:last-child {
+      border-bottom: 0;
+    }
+
+    .result-label {
+      color: #475569;
+      font-size: 0.92rem;
+    }
+
+    .result-value {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #0f172a;
+      text-align: right;
+    }
+
+    .highlight .result-value {
+      color: var(--success);
+      font-size: 1.08rem;
+    }
+
+    .comparison {
+      margin-top: 14px;
+      padding: 13px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      border-radius: 10px;
+      color: #1e3a8a;
+      font-size: 0.93rem;
+      line-height: 1.45;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .status-note {
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: #475569;
+    }
+
+    .status-note.error {
+      color: #b91c1c;
+    }
+
+    .input-pair {
+      display: grid;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Token Economics vs Billable Time Calculator</h1>
+    <p class="subtitle">Compare billable task revenue against token spend to understand profit, margin, and content equivalents.</p>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Inputs</h2>
+        <div class="inputs">
+          <div class="field">
+            <label for="dayRate">Day Rate (£)</label>
+            <div class="input-pair">
+              <input id="dayRateSlider" type="range" min="0" max="2000" step="1" value="825" />
+              <input id="dayRate" type="number" min="0" max="2000" step="0.01" value="825" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="hoursPerDay">Hours Worked Per Day</label>
+            <div class="input-pair">
+              <input id="hoursPerDaySlider" type="range" min="0" max="7.5" step="0.1" value="7.5" />
+              <input id="hoursPerDay" type="number" min="0" max="7.5" step="0.01" value="7.5" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="hoursOnTask">Hours Spent on Task</label>
+            <input id="hoursOnTask" type="number" step="0.01" value="7.5" />
+          </div>
+          <div class="field">
+            <label for="totalTokens">Total Tokens Used (Millions)</label>
+            <input id="totalTokens" type="number" min="0" step="0.01" value="" placeholder="e.g. 0.05, 0.5, 1.3" />
+          </div>
+          <div class="field">
+            <label for="modelPricing">Model Pricing (Google / Anthropic / OpenAI)</label>
+            <select id="modelPricing"></select>
+          </div>
+          <div class="field">
+            <label for="tokenCostPerM">Token Cost per 1 Million Tokens ($)</label>
+            <input id="tokenCostPerM" type="number" step="0.01" value="17.5" />
+            <input id="exchangeRate" type="hidden" value="0.77" />
+            <div class="status-note" id="pricingStatus">Loading model pricing from OpenRouter...</div>
+          </div>
+        </div>
+
+        <div class="btn-wrap">
+          <button id="calculateBtn" type="button">Calculate</button>
+        </div>
+
+        <div class="assumptions">
+          <h3>Assumptions + Practical Estimation Guide</h3>
+          <ul>
+            <li>1 million tokens = token cost input</li>
+            <li>1 token ≈ 0.75 words</li>
+            <li>Document planning shortcut: 1 page ≈ 500 words ≈ 667 tokens</li>
+            <li>10-page draft (with revisions) often lands around 0.02-0.06M tokens</li>
+            <li>50-page draft (iterative edits + rewrites) often lands around 0.10-0.30M tokens</li>
+            <li>Average book = 80,000 words (~106,667 tokens)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Results</h2>
+        <div class="results">
+          <div class="result-row">
+            <span class="result-label">Revenue from task (£)</span>
+            <span class="result-value" id="revenueGbp">£0.00</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Token cost ($)</span>
+            <span class="result-value" id="tokenCostUsd">$0.00</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Token cost (£)</span>
+            <span class="result-value" id="tokenCostGbp">£0.00</span>
+          </div>
+          <div class="result-row highlight">
+            <span class="result-label">Gross profit (£)</span>
+            <span class="result-value" id="grossProfit">£0.00</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Profit margin (%)</span>
+            <span class="result-value" id="profitMargin">0.00%</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Total words equivalent</span>
+            <span class="result-value" id="wordsEquivalent">0</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Equivalent number of books</span>
+            <span class="result-value" id="booksEquivalent">0.00</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Equivalent number of pages</span>
+            <span class="result-value" id="pagesEquivalent">0.00</span>
+          </div>
+        </div>
+
+        <div class="comparison" id="comparisonBox">
+          To equal one full day rate, you would need approximately 0.00 million tokens.
+        </div>
+
+        <p class="footer-note">Values auto-update as inputs change, and can also be recalculated with the button.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Curated model list requested (Google / Anthropic / OpenAI only).
+    // Pricing is pulled at runtime from OpenRouter (not hardcoded).
+    const CURATED_MODELS = [
+      { id: "custom", name: "Custom (manual entry)", costPerM: null },
+      // Google
+      { id: "google-gemini-3-1-pro-preview", name: "Gemini 3.1 Pro Preview [google]", costPerM: null, matchHints: ["google/gemini-3.1-pro"] },
+      { id: "google-gemini-3-pro-preview", name: "Gemini 3 Pro Preview [google]", costPerM: null, matchHints: ["google/gemini-3-pro"] },
+      { id: "google-gemini-3-flash-preview", name: "Gemini 3 Flash Preview [google]", costPerM: null, matchHints: ["google/gemini-3-flash"] },
+      // Anthropic
+      { id: "anthropic-claude-opus-4-6", name: "Claude Opus 4.6 [anthropic]", costPerM: null, matchHints: ["anthropic/claude-opus-4.6", "anthropic/claude-opus-4-6", "anthropic/claude-opus-4.5"] },
+      { id: "anthropic-claude-sonnet-4-6", name: "Claude Sonnet 4.6 [anthropic]", costPerM: null, matchHints: ["anthropic/claude-sonnet-4.6", "anthropic/claude-sonnet-4-6", "anthropic/claude-sonnet-4.5"] },
+      { id: "anthropic-claude-opus-4-5", name: "Claude Opus 4.5 [anthropic]", costPerM: null, matchHints: ["anthropic/claude-opus-4.5", "anthropic/claude-opus-4-5"] },
+      { id: "anthropic-claude-sonnet-4-5", name: "Claude Sonnet 4.5 [anthropic]", costPerM: null, matchHints: ["anthropic/claude-sonnet-4.5", "anthropic/claude-sonnet-4-5"] },
+      // OpenAI
+      { id: "openai-gpt-5-4-pro", name: "GPT-5.4 Pro [openai]", costPerM: null, matchHints: ["openai/gpt-5.4-pro"] },
+      { id: "openai-gpt-5-4", name: "GPT-5.4 [openai]", costPerM: null, matchHints: ["openai/gpt-5.4", "openai/gpt-5-4"] },
+      { id: "openai-gpt-5-3-codex", name: "GPT-5.3-Codex [openai]", costPerM: null, matchHints: ["openai/gpt-5.3-codex", "openai/gpt-5-3-codex"] },
+      { id: "openai-gpt-5-2", name: "GPT-5.2 [openai]", costPerM: null, matchHints: ["openai/gpt-5.2", "openai/gpt-5-2"] },
+      { id: "openai-gpt-5-1", name: "GPT-5.1 [openai]", costPerM: null, matchHints: ["openai/gpt-5.1", "openai/gpt-5-1"] },
+      { id: "openai-gpt-5", name: "GPT-5 [openai]", costPerM: null, matchHints: ["openai/gpt-5"] },
+      { id: "openai-gpt-5-codex", name: "GPT-5 Codex [openai]", costPerM: null, matchHints: ["openai/gpt-5-codex", "openai/gpt5-codex"] },
+      { id: "openai-gpt-5-1-codex", name: "GPT-5.1-Codex [openai]", costPerM: null, matchHints: ["openai/gpt-5.1-codex", "openai/gpt-5-1-codex"] }
+    ];
+
+    let availableModels = CURATED_MODELS.slice();
+
+    // ---------- Utility formatting helpers ----------
+    function parseNum(value, fallback) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    }
+
+    function safe(value) {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    function formatCurrencyGBP(value) {
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(safe(value));
+    }
+
+    function formatCurrencyUSD(value) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(safe(value));
+    }
+
+    function formatNumber(value, decimals) {
+      return safe(value).toLocaleString("en-GB", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function setStatus(id, message, isError) {
+      const el = document.getElementById(id);
+      el.textContent = message;
+      el.classList.toggle("error", Boolean(isError));
+    }
+
+    // ---------- Model pricing dropdown ----------
+    function populateModelDropdown() {
+      const select = document.getElementById("modelPricing");
+      const currentValue = select.value || "custom";
+      const options = availableModels;
+      select.innerHTML = "";
+
+      options.forEach(function (model) {
+        const option = document.createElement("option");
+        option.value = model.id;
+        const suffix = model.costPerM == null ? "" : " - $" + formatNumber(model.costPerM, 2) + "/1M";
+        option.textContent = model.name + suffix;
+        option.dataset.cost = model.costPerM == null ? "" : String(model.costPerM);
+        select.appendChild(option);
+      });
+
+      const hasCurrent = options.some(function (model) {
+        return model.id === currentValue;
+      });
+      select.value = hasCurrent ? currentValue : "custom";
+    }
+
+    function applySelectedModelPricing() {
+      const select = document.getElementById("modelPricing");
+      const selected = select.options[select.selectedIndex];
+      const cost = parseNum(selected && selected.dataset ? selected.dataset.cost : "", NaN);
+
+      if (Number.isFinite(cost) && cost > 0) {
+        document.getElementById("tokenCostPerM").value = String(cost);
+      }
+      calculate();
+    }
+
+    // ---------- External fetch helpers ----------
+    async function refreshExchangeRateOnLoad() {
+      try {
+        const response = await fetch("https://open.er-api.com/v6/latest/USD", { method: "GET" });
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const data = await response.json();
+        const gbpRate = parseNum(data && data.rates ? data.rates.GBP : NaN, NaN);
+        if (!Number.isFinite(gbpRate) || gbpRate <= 0) {
+          throw new Error("GBP rate missing");
+        }
+
+        document.getElementById("exchangeRate").value = String(gbpRate);
+        calculate();
+      } catch (error) {
+        // Keep default fallback value silently.
+      }
+    }
+
+    function getBlendedCostPerMillion(pricing) {
+      const promptPerToken = parseNum(pricing && pricing.prompt ? pricing.prompt : NaN, NaN);
+      const completionPerToken = parseNum(pricing && pricing.completion ? pricing.completion : NaN, NaN);
+      const resolvedPrompt = Number.isFinite(promptPerToken) ? promptPerToken : completionPerToken;
+      const resolvedCompletion = Number.isFinite(completionPerToken) ? completionPerToken : promptPerToken;
+      if (!Number.isFinite(resolvedPrompt) || !Number.isFinite(resolvedCompletion)) {
+        return NaN;
+      }
+      return ((resolvedPrompt + resolvedCompletion) / 2) * 1000000;
+    }
+
+    function resolveOpenRouterModelCost(curatedModel, openRouterModels) {
+      const hints = Array.isArray(curatedModel.matchHints) ? curatedModel.matchHints : [];
+      let bestMatch = null;
+      let bestScore = -1;
+
+      openRouterModels.forEach(function (item) {
+        const modelId = String(item && item.id ? item.id : "").toLowerCase();
+        hints.forEach(function (hint) {
+          const normalizedHint = String(hint).toLowerCase();
+          if (!normalizedHint) {
+            return;
+          }
+
+          // Match priority:
+          // 3 = exact model id
+          // 2 = starts with hint (e.g. variant suffixes)
+          // 1 = contains hint anywhere
+          let score = 0;
+          if (modelId === normalizedHint) {
+            score = 3;
+          } else if (modelId.indexOf(normalizedHint) === 0) {
+            score = 2;
+          } else if (modelId.indexOf(normalizedHint) >= 0) {
+            score = 1;
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = item;
+          }
+        });
+      });
+
+      if (!bestMatch) {
+        return NaN;
+      }
+      return getBlendedCostPerMillion(bestMatch.pricing);
+    }
+
+    async function loadCuratedModels() {
+      availableModels = CURATED_MODELS.map(function (model) {
+        return Object.assign({}, model);
+      });
+      populateModelDropdown();
+
+      try {
+        setStatus("pricingStatus", "Loading model pricing from OpenRouter...", false);
+        const response = await fetch("https://openrouter.ai/api/v1/models", { method: "GET" });
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const payload = await response.json();
+        const rawModels = payload && Array.isArray(payload.data) ? payload.data : [];
+        let resolvedCount = 0;
+
+        availableModels.forEach(function (model) {
+          if (model.id === "custom") {
+            return;
+          }
+          const cost = resolveOpenRouterModelCost(model, rawModels);
+          if (Number.isFinite(cost) && cost > 0) {
+            model.costPerM = cost;
+            resolvedCount += 1;
+          }
+        });
+
+        populateModelDropdown();
+        setStatus("pricingStatus", "Loaded live OpenRouter pricing for " + resolvedCount + " models.", false);
+      } catch (error) {
+        setStatus("pricingStatus", "Could not load OpenRouter pricing. Keep using manual token cost.", true);
+      }
+    }
+
+    // ---------- Slider + input sync ----------
+    function setupSliderSync(sliderId, inputId, min, max) {
+      const slider = document.getElementById(sliderId);
+      const input = document.getElementById(inputId);
+
+      slider.addEventListener("input", function () {
+        input.value = slider.value;
+        calculate();
+      });
+
+      input.addEventListener("input", function () {
+        const value = parseNum(input.value, NaN);
+        if (!Number.isFinite(value)) {
+          return;
+        }
+        const clamped = Math.min(max, Math.max(min, value));
+        slider.value = String(clamped);
+        calculate();
+      });
+    }
+
+    // ---------- Main calculation ----------
+    function calculate() {
+      // Read and sanitize inputs
+      const dayRate = parseNum(document.getElementById("dayRate").value, 825);
+      const hoursPerDay = parseNum(document.getElementById("hoursPerDay").value, 7.5);
+      const hoursOnTask = parseNum(document.getElementById("hoursOnTask").value, 7.5);
+      const totalTokensMillions = parseNum(document.getElementById("totalTokens").value, 0);
+      const totalTokens = totalTokensMillions * 1000000;
+      const tokenCostPerM = parseNum(document.getElementById("tokenCostPerM").value, 17.5);
+      const exchangeRate = parseNum(document.getElementById("exchangeRate").value, 0.77); // USD to GBP
+
+      // Constants
+      const WORDS_PER_TOKEN = 0.75;
+      const WORDS_PER_BOOK = 80000;
+      const WORDS_PER_PAGE = 500;
+
+      // Guard against invalid divisors
+      const safeHoursPerDay = hoursPerDay > 0 ? hoursPerDay : 0;
+      const safeExchangeRate = exchangeRate > 0 ? exchangeRate : 0;
+      const safeTokenCostPerM = tokenCostPerM > 0 ? tokenCostPerM : 0;
+
+      // 1) Revenue earned from task: (Day Rate / Hours per Day) * Hours Spent on Task
+      const revenueGbp = safeHoursPerDay > 0 ? (dayRate / safeHoursPerDay) * hoursOnTask : 0;
+
+      // 2) Token cost in USD: (Total Tokens / 1,000,000) * Token Cost per 1M
+      const tokenCostUsd = (totalTokens / 1000000) * safeTokenCostPerM;
+
+      // 3) Token cost in GBP: Token Cost USD * Exchange Rate
+      const tokenCostGbp = tokenCostUsd * safeExchangeRate;
+
+      // 4) Gross Profit: Revenue - Token Cost GBP
+      const grossProfit = revenueGbp - tokenCostGbp;
+
+      // 5) Profit Margin %: (Gross Profit / Revenue) * 100
+      const profitMargin = revenueGbp > 0 ? (grossProfit / revenueGbp) * 100 : 0;
+
+      // 6) Word equivalent: Tokens * 0.75
+      const wordsEquivalent = totalTokens * WORDS_PER_TOKEN;
+
+      // 7) Book equivalent: Words / 80,000
+      const booksEquivalent = wordsEquivalent / WORDS_PER_BOOK;
+
+      // Additional display: pages
+      const pagesEquivalent = wordsEquivalent / WORDS_PER_PAGE;
+
+      // Bonus: Equivalent tokens to equal one day rate
+      // Formula: (Day Rate in GBP converted to USD) / Token Cost per 1M * 1,000,000
+      const dayRateUsd = safeExchangeRate > 0 ? dayRate / safeExchangeRate : 0;
+      const tokensForDayRate = safeTokenCostPerM > 0 ? (dayRateUsd / safeTokenCostPerM) * 1000000 : 0;
+      const tokensForDayRateMillions = tokensForDayRate / 1000000;
+
+      // Output rendering
+      document.getElementById("revenueGbp").textContent = formatCurrencyGBP(revenueGbp);
+      document.getElementById("tokenCostUsd").textContent = formatCurrencyUSD(tokenCostUsd);
+      document.getElementById("tokenCostGbp").textContent = formatCurrencyGBP(tokenCostGbp);
+      document.getElementById("grossProfit").textContent = formatCurrencyGBP(grossProfit);
+      document.getElementById("profitMargin").textContent = formatNumber(profitMargin, 2) + "%";
+      document.getElementById("wordsEquivalent").textContent = formatNumber(wordsEquivalent, 0);
+      document.getElementById("booksEquivalent").textContent = formatNumber(booksEquivalent, 2);
+      document.getElementById("pagesEquivalent").textContent = formatNumber(pagesEquivalent, 2);
+      document.getElementById("comparisonBox").textContent =
+        "To equal one full day rate, you would need approximately " +
+        formatNumber(tokensForDayRateMillions, 2) +
+        " million tokens.";
+    }
+
+    // ---------- Initialize ----------
+    populateModelDropdown();
+    setupSliderSync("dayRateSlider", "dayRate", 0, 2000);
+    setupSliderSync("hoursPerDaySlider", "hoursPerDay", 0, 7.5);
+
+    // Trigger calculations on button click + live input change
+    document.getElementById("calculateBtn").addEventListener("click", calculate);
+    document.getElementById("modelPricing").addEventListener("change", applySelectedModelPricing);
+    document.querySelectorAll("input[type='number']").forEach(function (input) {
+      input.addEventListener("input", calculate);
+    });
+
+    // Initial calculation + live pulls on load
+    calculate();
+    refreshExchangeRateOnLoad();
+    loadCuratedModels();
+  </script>
+</body>
+</html>
